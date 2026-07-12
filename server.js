@@ -259,11 +259,43 @@ const startServer = async () => {
       console.log('  ice-candidate      → ICE candidate exchange');
       console.log('  end-call           → Terminate video call');
       console.log('');
+
+      // Start Render self-ping keep-alive loop
+      keepAlive();
     });
   } catch (err) {
     console.error('❌ Error: Failed to start Medicare Server:', err.message);
     process.exit(1);
   }
+};
+
+const keepAlive = () => {
+  const RENDER_URL = process.env.RENDER_EXTERNAL_URL || 'https://docter-backend-0zol.onrender.com';
+  const PING_INTERVAL = 14 * 60 * 1000; // 14 minutes in ms
+
+  // Initial self-ping in 10 seconds to warm up the instance on deployment
+  setTimeout(async () => {
+    try {
+      console.log(`[Keep-Alive] Initial self-ping warm-up to ${RENDER_URL}/api/health...`);
+      await fetch(`${RENDER_URL}/api/health`);
+    } catch (err) {
+      console.error(`[Keep-Alive] Warm-up ping failed:`, err.message);
+    }
+  }, 10000);
+
+  setInterval(async () => {
+    try {
+      console.log(`[Keep-Alive] Pinging self at ${RENDER_URL}/api/health to prevent spin-down...`);
+      const response = await fetch(`${RENDER_URL}/api/health`);
+      if (response.ok) {
+        console.log(`[Keep-Alive] Self-ping succeeded. Server stays awake!`);
+      } else {
+        console.warn(`[Keep-Alive] Self-ping returned status: ${response.status}`);
+      }
+    } catch (err) {
+      console.error(`[Keep-Alive] Self-ping failed:`, err.message);
+    }
+  }, PING_INTERVAL);
 };
 
 startServer();
