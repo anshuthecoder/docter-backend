@@ -1,0 +1,210 @@
+{
+  "users": [
+    {
+      "email": "rahul.sharma@medicare.com",
+      "password": "password",
+      "role": "doctor",
+      "name": "Dr. Rahul Sharma",
+      "profileCompleted": true,
+      "completionPercentage": 100,
+      "profileData": {
+        "fullName": "Dr. Rahul Sharma",
+        "gender": "Male",
+        "dob": "1985-05-15",
+        "mobile": "9876543210",
+        "email": "rahul.sharma@medicare.com",
+        "address": "45, Primus Clinic, Medical Road",
+        "city": "Delhi",
+        "state": "Delhi NCR",
+        "country": "India",
+        "pincode": "110001",
+        "regNumber": "DMC-12345",
+        "regCouncil": "Delhi Medical Council",
+        "qualification": "MBBS, MD (Cardiology)",
+        "degree": "MD",
+        "specialization": "Cardiology",
+        "subSpecialization": "Interventional Cardiology",
+        "experience": "15",
+        "currentHospital": "Apollo Hospital, Delhi",
+        "previousHospital": "Fortis Escorts, Delhi",
+        "languages": "English, Hindi",
+        "consultationFee": "800",
+        "onlineFee": "700",
+        "offlineFee": "800",
+        "bio": "Senior Interventional Cardiologist with over 15 years of experience in cardiovascular interventions, heart failures, and non-invasive cardiology procedures.",
+        "servicesOffered": [
+          "online_consultation",
+          "clinic_visit",
+          "lab_test",
+          "scan_imaging",
+          "full_body_check",
+          "vaccination"
+        ],
+        "profilePhoto": ""
+      },
+      "updatedAt": "2026-07-05T10:47:23.296Z",
+      "lastCompletedStep": 2
+    },
+    {
+      "email": "arjun.mehta@medicare.com",
+      "password": "password",
+      "role": "doctor",
+      "name": "Dr. Arjun Mehta",
+      "profileCompleted": true,
+      "completionPercentage": 100,
+      "profileData": {
+        "fullName": "Dr. Arjun Mehta",
+        "gender": "Male",
+        "dob": "1988-08-20",
+        "mobile": "9876543220",
+        "email": "arjun.mehta@medicare.com",
+        "address": "Fortis Cardio Center",
+        "city": "Delhi",
+        "state": "Delhi NCR",
+        "country": "India",
+        "pincode": "110012",
+        "regNumber": "DMC-98765",
+        "regCouncil": "Delhi Medical Council",
+        "qualification": "MBBS, MD (Cardiology)",
+        "degree": "MD",
+        "specialization": "Cardiology",
+        "experience": "15",
+        "currentHospital": "Apollo Hospital",
+        "languages": "English, Hindi",
+        "consultationFee": "800",
+        "onlineFee": "600",
+        "offlineFee": "800",
+        "bio": "Expert cardiologist focused on preventative and intervention-based heart therapies.",
+        "servicesOffered": [
+          "online_consultation",
+          "clinic_visit",
+          "scan_imaging",
+          "full_body_check"
+        ]
+      }
+    },
+    {
+      "email": "priya.sharma@medicare.com",
+      "password": "password",
+      "role": "doctor",
+      "name": "Dr. Priya Sharma",
+      "profileCompleted": true,
+      "completionPercentage": 100,
+      "profileData": {
+        "fullName": "Dr. Priya Sharma",
+        "gender": "Female",
+        "dob": "1990-04-12",
+        "mobile": "9876543221",
+        "email": "priya.sharma@medicare.com",
+        "address": "Max Skin Care Clinic",
+        "city": "Mumbai",
+        "state": "Maharashtra",
+        "country": "India",
+        "pincode": "400001",
+        "regNumber": "MMC-12984",
+        "regCouncil": "Maharashtra Medical Council",
+        "qualification": "MBBS, MD (Dermatology)",
+        "degree": "MD",
+        "specialization": "Dermatology",
+        "experience": "12",
+        "currentHospital": "Max Healthcare, Mumbai",
+        "languages": "English, Hindi, Marathi",
+        "consultationFee": "600",
+        "onlineFee": "500",
+        "offlineFee": "600",
+        "bio": "Specializes in clinical dermatology, skin procedures, laser treatments, and hair care management.",
+        "servicesOffered": [
+          "online_consultation",
+          "clinic_visit",
+          "medicine_delivery"
+        ]
+      }
+    },
+    {
+      "email": "ankit@medicare.com",
+      "password": "password",
+      "role": "patient",
+      "name": "Ankit Kumar",
+      "profileCompleted": true,
+      "completionPercentage": 100,
+      "profileData": {
+        "fullName": "Ankit Kumar",
+        "email": "ankit@medicare.com",
+        "age": "28",
+        "gender": "Male",
+        "phone": "9876543212",
+        "bloodGroup": "O+",
+        "address": "Sector 62, Noida, Uttar Pradesh",
+        "emergencyContact": "Asha Thakur - 9876543213",
+        "medicalHistory": "Mild dust allergy, seasonal asthma (mild), no regular medications.",
+        "insuranceDetails": "Star Health Assure Insurance • Policy No: ST102394 • Valid till Jan 2028"
+      }
+    }
+  ],
+  "appointments": [],
+  "conversations": [
+    {
+      "conversationId": "conv_1783412726973_pw4r",
+      "doctorEmail": "rahul.sharma@medicare.com",
+      "doctorName": "Dr. Rahul Sharma",
+      "patientEmail": "ankit@medicare.com",
+      "patientName": "Ankit Kumar",
+      "status": "active",
+      "lastMessage": "Hello doctor, this is a real-time message test.",
+      "lastMessageAt": "2026-07-07T08:25:28.098Z",
+      "unreadDoctor": 1,
+      "unreadPatient": 0,
+      "createdAt": "2026-07-07T08:25:26.973Z"
+    },
+    {
+      "conversationId": "conv_1783837313605_3oup",
+      "doctorEmail": "arjun.mehta@medicare.com",
+      "doctorName": "Dr. Arjun Mehta",
+      "patientEmail": "ankit@medicare.com",
+      "patientName": "Ankit Kumar",
+      "status": "active",
+      "lastMessage": "Hello Dr. Dr. Arjun Mehta, I have scheduled an online consultation for Today, 09:30 AM. Fee: ₹800.",
+      "lastMessageAt": "2026-07-12T06:26:52.464Z",
+      "unreadDoctor": 2,
+      "unreadPatient": 0,
+      "createdAt": "2026-07-12T06:21:53.606Z",
+      "consultationFee": 800,
+      "scheduledTime": "Today, 09:30 AM"
+    }
+  ],
+  "messages": [
+    {
+      "messageId": "msg_1783412728098_g5rf",
+      "conversationId": "conv_1783412726973_pw4r",
+      "senderEmail": "ankit@medicare.com",
+      "senderRole": "patient",
+      "senderName": "Ankit Kumar",
+      "content": "Hello doctor, this is a real-time message test.",
+      "type": "text",
+      "isRead": false,
+      "timestamp": "2026-07-07T08:25:28.098Z"
+    },
+    {
+      "messageId": "msg_1783837313607_tojf",
+      "conversationId": "conv_1783837313605_3oup",
+      "senderEmail": "ankit@medicare.com",
+      "senderRole": "patient",
+      "senderName": "Ankit Kumar",
+      "content": "Hello Dr. Dr. Arjun Mehta, I have scheduled an online consultation for Today, 09:00 AM. Fee: ₹800.",
+      "type": "text",
+      "isRead": false,
+      "timestamp": "2026-07-12T06:21:53.607Z"
+    },
+    {
+      "messageId": "msg_1783837612464_fl8a",
+      "conversationId": "conv_1783837313605_3oup",
+      "senderEmail": "ankit@medicare.com",
+      "senderRole": "patient",
+      "senderName": "Ankit Kumar",
+      "content": "Hello Dr. Dr. Arjun Mehta, I have scheduled an online consultation for Today, 09:30 AM. Fee: ₹800.",
+      "type": "text",
+      "isRead": false,
+      "timestamp": "2026-07-12T06:26:52.464Z"
+    }
+  ]
+}
