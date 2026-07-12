@@ -20,6 +20,7 @@ import cors from 'cors';
 import authRoutes from './routes/authRoutes.js';
 import profileRoutes from './routes/profileRoutes.js';
 import chatRoutes from './routes/chatRoutes.js';
+import postRoutes from './routes/postRoutes.js';
 import {
   initDbSchema,
   findConversationById,
@@ -212,6 +213,9 @@ app.use('/api/profile', profileRoutes);
 
 // Chat routes (start conversation, fetch conversations/messages, send message, read status)
 app.use('/api/chat', chatRoutes);
+
+// Health post routes (upload, retrieve, like, download)
+app.use('/api/posts', postRoutes);
 
 // ─────────────────────────────────────────────
 // 404 Handler

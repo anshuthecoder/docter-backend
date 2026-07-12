@@ -95,6 +95,23 @@ export const initDbSchema = async () => {
       )
     `);
 
+    // 5. Create Health Posts Table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS health_posts (
+        "postId" VARCHAR(255) PRIMARY KEY,
+        "doctorEmail" VARCHAR(255) NOT NULL,
+        "doctorName" VARCHAR(255) NOT NULL,
+        "doctorSpecialty" VARCHAR(255),
+        "doctorAvatar" TEXT,
+        "bannerImage" TEXT NOT NULL,
+        heading VARCHAR(255) NOT NULL,
+        description TEXT NOT NULL,
+        likes INTEGER DEFAULT 0,
+        downloads INTEGER DEFAULT 0,
+        "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     await client.query('COMMIT');
     console.log('✅ PostgreSQL tables verified/created successfully.');
 
@@ -413,4 +430,61 @@ export const searchDoctorsInDb = async (filters) => {
 
   const res = await pool.query(query, params);
   return res.rows;
+};
+
+// ─────────────────────────────────────────────
+// Health Posts Helpers
+// ─────────────────────────────────────────────
+
+export const addHealthPost = async (postData) => {
+  const client = await pool.connect();
+  try {
+    const { postId, doctorEmail, doctorName, doctorSpecialty, doctorAvatar, bannerImage, heading, description } = postData;
+    await client.query(
+      `INSERT INTO health_posts ("postId", "doctorEmail", "doctorName", "doctorSpecialty", "doctorAvatar", "bannerImage", heading, description, likes, downloads)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 0, 0)`,
+      [postId, doctorEmail, doctorName, doctorSpecialty, doctorAvatar, bannerImage, heading, description]
+    );
+    return { success: true };
+  } finally {
+    client.release();
+  }
+};
+
+export const getAllHealthPosts = async () => {
+  const client = await pool.connect();
+  try {
+    const res = await client.query(
+      `SELECT * FROM health_posts ORDER BY "createdAt" DESC`
+    );
+    return res.rows;
+  } finally {
+    client.release();
+  }
+};
+
+export const incrementPostLikes = async (postId) => {
+  const client = await pool.connect();
+  try {
+    const res = await client.query(
+      `UPDATE health_posts SET likes = likes + 1 WHERE "postId" = $1 RETURNING likes`,
+      [postId]
+    );
+    return res.rows[0];
+  } finally {
+    client.release();
+  }
+};
+
+export const incrementPostDownloads = async (postId) => {
+  const client = await pool.connect();
+  try {
+    const res = await client.query(
+      `UPDATE health_posts SET downloads = downloads + 1 WHERE "postId" = $1 RETURNING downloads`,
+      [postId]
+    );
+    return res.rows[0];
+  } finally {
+    client.release();
+  }
 };
