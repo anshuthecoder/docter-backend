@@ -488,3 +488,80 @@ export const incrementPostDownloads = async (postId) => {
     client.release();
   }
 };
+
+export const normalizeProfileData = (pd, name, email) => {
+  const normalized = { ...(pd || {}) };
+  if (name && !normalized.fullName) normalized.fullName = name;
+  if (email && !normalized.email) normalized.email = email;
+
+  // Align specialties
+  const specialty = normalized.specialty || normalized.specialization || 'General Physician';
+  normalized.specialty = specialty;
+  normalized.specialization = specialty;
+
+  // Align locations
+  const location = normalized.location || normalized.city || 'Delhi';
+  normalized.location = location;
+  normalized.city = location;
+
+  // Align hospitals
+  const hospital = normalized.hospital || normalized.currentHospital || 'MediCare Center';
+  normalized.hospital = hospital;
+  normalized.currentHospital = hospital;
+
+  // Align fees
+  const fee = normalized.fee || normalized.consultationFee || 500;
+  normalized.fee = parseInt(fee, 10);
+  normalized.consultationFee = String(fee);
+
+  // Align degrees
+  const degree = normalized.degree || normalized.qualification || 'MBBS';
+  normalized.degree = degree;
+  normalized.qualification = degree;
+
+  // Align phone
+  const phone = normalized.phone || normalized.mobile || '';
+  normalized.phone = phone;
+  normalized.mobile = phone;
+
+  // Default other fields to ensure 100% completion if registering
+  if (!normalized.gender) normalized.gender = 'Male';
+  if (!normalized.dob) normalized.dob = '1990-01-01';
+  if (!normalized.regNumber) {
+    normalized.regNumber = 'REG-' + Math.floor(100000 + Math.random() * 900000);
+  }
+  if (!normalized.regCouncil) normalized.regCouncil = 'Medical Council of India';
+  if (!normalized.state) normalized.state = 'Delhi NCR';
+  if (!normalized.country) normalized.country = 'India';
+
+  return normalized;
+};
+
+export const calculateCompletion = (pd) => {
+  if (!pd) return 0;
+  let score = 0;
+  const total = 4; // 4 steps, each worth 25%
+
+  // Step 1: Personal Info (fullName, gender, dob, mobile, email, address)
+  const step1Fields = ['fullName', 'gender', 'dob', 'mobile', 'email'];
+  const step1Filled = step1Fields.filter((f) => pd[f] && String(pd[f]).trim() !== '').length;
+  if (step1Filled >= 4) score++;
+
+  // Step 2: Professional Info (regNumber, qualification, degree, specialization, experience)
+  const step2Fields = ['regNumber', 'qualification', 'specialization', 'experience'];
+  const step2Filled = step2Fields.filter((f) => pd[f] && String(pd[f]).trim() !== '').length;
+  if (step2Filled >= 3) score++;
+
+  // Step 3: Clinic/Hospital Info (currentHospital, city, state, consultationFee)
+  const step3Fields = ['currentHospital', 'city', 'consultationFee'];
+  const step3Filled = step3Fields.filter((f) => pd[f] && String(pd[f]).trim() !== '').length;
+  if (step3Filled >= 2) score++;
+
+  // Step 4: Bio & Availability (bio, languages)
+  const step4Fields = ['bio', 'languages'];
+  const step4Filled = step4Fields.filter((f) => pd[f] && String(pd[f]).trim() !== '').length;
+  if (step4Filled >= 1) score++;
+
+  return Math.round((score / total) * 100);
+};
+

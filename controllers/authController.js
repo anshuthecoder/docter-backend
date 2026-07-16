@@ -8,6 +8,8 @@ import {
   findUserByEmailAndRole,
   createUser,
   updateUser,
+  normalizeProfileData,
+  calculateCompletion,
 } from '../config/db.js';
 
 // ─────────────────────────────────────────────
@@ -44,18 +46,16 @@ export const registerUser = async (req, res) => {
   let newUser;
 
   if (role === 'doctor') {
+    const pd = normalizeProfileData(profileData || {}, name, email);
+    const completion = calculateCompletion(pd);
     newUser = {
       email,
       password,
       role,
       name,
-      profileCompleted: false,
-      completionPercentage: 20,
-      profileData: {
-        fullName: name,
-        email,
-        ...(profileData || {}),
-      },
+      profileCompleted: completion >= 100,
+      completionPercentage: completion,
+      profileData: pd,
       createdAt: new Date().toISOString(),
     };
   } else {
@@ -164,19 +164,18 @@ export const updateProfile = async (req, res) => {
   }
 
   // Merge profile data
-  const updates = {
-    profileData: {
-      ...existingUser.profileData,
-      ...(profileData || {}),
-    },
+  const mergedProfileData = {
+    ...existingUser.profileData,
+    ...(profileData || {}),
   };
+  const pd = normalizeProfileData(mergedProfileData, existingUser.name, email);
+  const completion = calculateCompletion(pd);
 
-  if (completionPercentage !== undefined) {
-    updates.completionPercentage = completionPercentage;
-  }
-  if (profileCompleted !== undefined) {
-    updates.profileCompleted = profileCompleted;
-  }
+  const updates = {
+    profileData: pd,
+    completionPercentage: completionPercentage !== undefined ? completionPercentage : completion,
+    profileCompleted: profileCompleted !== undefined ? profileCompleted : (completion >= 100),
+  };
 
   const updatedUser = await updateUser(email, 'doctor', updates);
 

@@ -9,6 +9,8 @@ import {
   updateUser,
   getAllDoctorsFromDb,
   searchDoctorsInDb,
+  normalizeProfileData,
+  calculateCompletion,
 } from '../config/db.js';
 
 // ─────────────────────────────────────────────
@@ -99,7 +101,7 @@ export const createDoctorProfile = async (req, res) => {
   }
 
   // Build profile with step-wise data
-  const pd = profileData || {};
+  const pd = normalizeProfileData(profileData || {}, name, email);
   const completion = calculateCompletion(pd);
 
   const newDoctor = {
@@ -109,11 +111,7 @@ export const createDoctorProfile = async (req, res) => {
     name,
     profileCompleted: completion >= 100,
     completionPercentage: completion,
-    profileData: {
-      fullName: name,
-      email,
-      ...pd,
-    },
+    profileData: pd,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
@@ -157,12 +155,11 @@ export const updateDoctorProfile = async (req, res) => {
     ...existingDoctor.profileData,
     ...(profileData || {}),
   };
-
-  // Calculate completion based on merged data
-  const completion = calculateCompletion(mergedProfileData);
+  const pd = normalizeProfileData(mergedProfileData, existingDoctor.name, email);
+  const completion = calculateCompletion(pd);
 
   const updates = {
-    profileData: mergedProfileData,
+    profileData: pd,
     completionPercentage: completion,
     profileCompleted: completion >= 100,
     updatedAt: new Date().toISOString(),
@@ -226,36 +223,6 @@ export const getAllDoctors = async (req, res) => {
   }
 };
 
-// ─────────────────────────────────────────────
-// Helper: Calculate profile completion percentage
-// Based on the 4-step "Complete Your Profile" flow
-// ─────────────────────────────────────────────
-function calculateCompletion(pd) {
-  let score = 0;
-  const total = 4; // 4 steps, each worth 25%
-
-  // Step 1: Personal Info (fullName, gender, dob, mobile, email, address)
-  const step1Fields = ['fullName', 'gender', 'dob', 'mobile', 'email'];
-  const step1Filled = step1Fields.filter((f) => pd[f] && pd[f].trim() !== '').length;
-  if (step1Filled >= 4) score++;
-
-  // Step 2: Professional Info (regNumber, qualification, degree, specialization, experience)
-  const step2Fields = ['regNumber', 'qualification', 'specialization', 'experience'];
-  const step2Filled = step2Fields.filter((f) => pd[f] && pd[f].trim() !== '').length;
-  if (step2Filled >= 3) score++;
-
-  // Step 3: Clinic/Hospital Info (currentHospital, city, state, consultationFee)
-  const step3Fields = ['currentHospital', 'city', 'consultationFee'];
-  const step3Filled = step3Fields.filter((f) => pd[f] && pd[f].trim() !== '').length;
-  if (step3Filled >= 2) score++;
-
-  // Step 4: Bio & Availability (bio, languages)
-  const step4Fields = ['bio', 'languages'];
-  const step4Filled = step4Fields.filter((f) => pd[f] && pd[f].trim() !== '').length;
-  if (step4Filled >= 1) score++;
-
-  return Math.round((score / total) * 100);
-}
 
 // ─────────────────────────────────────────────
 // Helper: Get list of missing required fields

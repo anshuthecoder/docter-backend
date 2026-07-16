@@ -39,7 +39,7 @@ const httpServer = createServer(app);
 // ─────────────────────────────────────────────
 const io = new Server(httpServer, {
   cors: {
-    origin: ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:4173', 'https://docter-frontend-mu.vercel.app'],
+    origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175', 'http://localhost:3000', 'http://localhost:4173', 'https://docter-frontend-mu.vercel.app'],
     methods: ['GET', 'POST'],
     credentials: true,
   },
@@ -184,7 +184,7 @@ io.on('connection', (socket) => {
 // Middleware
 // ─────────────────────────────────────────────
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:4173', 'https://docter-frontend-mu.vercel.app'],
+  origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175', 'http://localhost:3000', 'http://localhost:4173', 'https://docter-frontend-mu.vercel.app'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   credentials: true,
 }));
