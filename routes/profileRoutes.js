@@ -10,10 +10,18 @@ import {
   createDoctorProfile,
   updateDoctorProfile,
   getAllDoctors,
-  searchDoctors
+  searchDoctors,
+  addDoctorReview,
+  getDoctorReviews
 } from '../controllers/profileController.js';
 
 const router = Router();
+
+// POST /api/profile/reviews - Add rating and review for a doctor
+router.post('/reviews', addDoctorReview);
+
+// GET /api/profile/reviews/:doctorEmail - Get reviews for a doctor
+router.get('/reviews/:doctorEmail', getDoctorReviews);
 
 // GET /api/profile/search - Search doctors
 router.get('/search', searchDoctors);

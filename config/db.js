@@ -41,7 +41,7 @@ export const initDbSchema = async () => {
     // 1. Create Users Table
     await client.query(`
       CREATE TABLE IF NOT EXISTS users (
-        email VARCHAR(255) PRIMARY KEY,
+        email VARCHAR(255) NOT NULL,
         password VARCHAR(255) NOT NULL,
         role VARCHAR(50) NOT NULL,
         name VARCHAR(255) NOT NULL,
@@ -49,7 +49,8 @@ export const initDbSchema = async () => {
         "completionPercentage" INTEGER DEFAULT 0,
         "profileData" JSONB,
         "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        "lastCompletedStep" INTEGER
+        "lastCompletedStep" INTEGER,
+        PRIMARY KEY (email, role)
       )
     `);
 
@@ -87,13 +88,39 @@ export const initDbSchema = async () => {
       )
     `);
 
+    // Performance Indexes for Chat
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_messages_conv ON messages("conversationId", timestamp);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_conv_doctor ON conversations("doctorEmail");`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_conv_patient ON conversations("patientEmail");`);
+
     // 4. Create Appointments Table
     await client.query(`
       CREATE TABLE IF NOT EXISTS appointments (
-        id SERIAL PRIMARY KEY,
-        data JSONB NOT NULL
+        "appointmentId" VARCHAR(255) PRIMARY KEY,
+        "doctorEmail" VARCHAR(255) NOT NULL,
+        "doctorName" VARCHAR(255),
+        "patientEmail" VARCHAR(255) NOT NULL,
+        "patientName" VARCHAR(255),
+        "consultationFee" INTEGER,
+        "scheduledTime" VARCHAR(255) NOT NULL,
+        status VARCHAR(50) DEFAULT 'pending',
+        "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
+
+    // 5. Create Reviews Table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS reviews (
+        "reviewId" VARCHAR(255) PRIMARY KEY,
+        "doctorEmail" VARCHAR(255) NOT NULL,
+        "patientEmail" VARCHAR(255) NOT NULL,
+        "patientName" VARCHAR(255) NOT NULL,
+        rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
+        comment TEXT NOT NULL,
+        "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_reviews_doc ON reviews("doctorEmail");`);
 
     // 5. Create Health Posts Table
     await client.query(`
@@ -101,16 +128,34 @@ export const initDbSchema = async () => {
         "postId" VARCHAR(255) PRIMARY KEY,
         "doctorEmail" VARCHAR(255) NOT NULL,
         "doctorName" VARCHAR(255) NOT NULL,
-        "doctorSpecialty" VARCHAR(255),
+        "doctorSpecialty" VARCHAR(255) NOT NULL,
         "doctorAvatar" TEXT,
-        "bannerImage" TEXT NOT NULL,
-        heading VARCHAR(255) NOT NULL,
+        "bannerImage" TEXT,
+        heading TEXT NOT NULL,
         description TEXT NOT NULL,
         likes INTEGER DEFAULT 0,
         downloads INTEGER DEFAULT 0,
         "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
+
+    // Migration constraint check to update existing primary keys to composite (email, role)
+    try {
+      await client.query('ALTER TABLE users DROP CONSTRAINT IF EXISTS users_pkey');
+      await client.query('ALTER TABLE users ADD PRIMARY KEY (email, role)');
+      console.log('✅ Users table primary key migrated to (email, role) composite key.');
+    } catch (err) {
+      // Primary key constraint may already be composite, which is fine
+    }
+
+    try {
+      await client.query('ALTER TABLE appointments ADD COLUMN IF NOT EXISTS "doctorName" VARCHAR(255)');
+      await client.query('ALTER TABLE appointments ADD COLUMN IF NOT EXISTS "patientName" VARCHAR(255)');
+      await client.query('ALTER TABLE appointments ADD COLUMN IF NOT EXISTS "consultationFee" INTEGER');
+      await client.query('ALTER TABLE appointments ALTER COLUMN status SET DEFAULT \'pending\'');
+    } catch (err) {
+      console.log('Appointments table migration failed/skipped:', err.message);
+    }
 
     await client.query('COMMIT');
     console.log('✅ PostgreSQL tables verified/created successfully.');
@@ -367,7 +412,7 @@ export const updateConversation = async (conversationId, updates) => {
 
 export const getMessagesByConversation = async (conversationId) => {
   const res = await pool.query(
-    'SELECT * FROM messages WHERE "conversationId" = $1',
+    'SELECT * FROM messages WHERE "conversationId" = $1 ORDER BY timestamp ASC',
     [conversationId]
   );
   return res.rows;
@@ -394,17 +439,17 @@ export const addMessage = async (messageData) => {
 
 export const getAllDoctorsFromDb = async () => {
   const res = await pool.query(
-    'SELECT * FROM users WHERE role = $1 AND "profileCompleted" = $2',
-    ['doctor', true]
+    'SELECT * FROM users WHERE role = $1 AND "profileCompleted" = $2 AND email NOT LIKE $3',
+    ['doctor', true, '%@medicare.com']
   );
   return res.rows;
 };
 
 export const searchDoctorsInDb = async (filters) => {
   const { q, specialty, city } = filters;
-  let query = 'SELECT * FROM users WHERE role = $1 AND "profileCompleted" = $2';
-  const params = ['doctor', true];
-  let paramIdx = 3;
+  let query = 'SELECT * FROM users WHERE role = $1 AND "profileCompleted" = $2 AND email NOT LIKE $3';
+  const params = ['doctor', true, '%@medicare.com'];
+  let paramIdx = 4;
 
   if (q) {
     query += ` AND (
@@ -563,5 +608,85 @@ export const calculateCompletion = (pd) => {
   if (step4Filled >= 1) score++;
 
   return Math.round((score / total) * 100);
+};
+
+// ─────────────────────────────────────────────
+// Appointment CRUD Helpers
+// ─────────────────────────────────────────────
+
+export const generateAppointmentId = () => {
+  const ts = Date.now();
+  const rand = Math.random().toString(36).substring(2, 6);
+  return `apt_${ts}_${rand}`;
+};
+
+export const createAppointment = async (appointmentData) => {
+  const res = await pool.query(
+    `INSERT INTO appointments ("appointmentId", "doctorEmail", "doctorName", "patientEmail", "patientName", "consultationFee", "scheduledTime", status)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+    [
+      appointmentData.appointmentId,
+      appointmentData.doctorEmail,
+      appointmentData.doctorName,
+      appointmentData.patientEmail,
+      appointmentData.patientName,
+      appointmentData.consultationFee,
+      appointmentData.scheduledTime,
+      appointmentData.status || 'pending'
+    ]
+  );
+  return res.rows[0];
+};
+
+export const getAppointmentsByUser = async (email, role) => {
+  const key = role === 'doctor' ? 'doctorEmail' : 'patientEmail';
+  const res = await pool.query(
+    `SELECT * FROM appointments WHERE LOWER("${key}") = LOWER($1) ORDER BY "createdAt" DESC`,
+    [email]
+  );
+  return res.rows;
+};
+
+export const updateAppointmentStatus = async (appointmentId, status) => {
+  const res = await pool.query(
+    `UPDATE appointments SET status = $1 WHERE "appointmentId" = $2 RETURNING *`,
+    [status, appointmentId]
+  );
+  return res.rows[0];
+};
+
+export const getAppointmentById = async (appointmentId) => {
+  const res = await pool.query(
+    `SELECT * FROM appointments WHERE "appointmentId" = $1`,
+    [appointmentId]
+  );
+  return res.rows[0];
+};
+
+export const createReview = async (reviewData) => {
+  const reviewId = `rev_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+  const res = await pool.query(
+    `INSERT INTO reviews ("reviewId", "doctorEmail", "patientEmail", "patientName", rating, comment, "createdAt")
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
+     RETURNING *`,
+    [
+      reviewId,
+      reviewData.doctorEmail,
+      reviewData.patientEmail,
+      reviewData.patientName,
+      reviewData.rating,
+      reviewData.comment,
+      new Date().toISOString()
+    ]
+  );
+  return res.rows[0];
+};
+
+export const getReviewsByDoctor = async (doctorEmail) => {
+  const res = await pool.query(
+    `SELECT * FROM reviews WHERE LOWER("doctorEmail") = LOWER($1) ORDER BY "createdAt" DESC`,
+    [doctorEmail]
+  );
+  return res.rows;
 };
 

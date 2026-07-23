@@ -11,6 +11,8 @@ import {
   searchDoctorsInDb,
   normalizeProfileData,
   calculateCompletion,
+  createReview,
+  getReviewsByDoctor,
 } from '../config/db.js';
 
 // ─────────────────────────────────────────────
@@ -195,16 +197,19 @@ export const getAllDoctors = async (req, res) => {
     const doctors = rawDoctors.map((safe) => ({
       email: safe.email,
       name: safe.name,
-      specialization: safe.profileData?.specialization || 'General',
-      qualification: safe.profileData?.qualification || '',
+      specialization: safe.profileData?.specialization || safe.profileData?.specialty || 'General Physician',
+      qualification: safe.profileData?.qualification || safe.profileData?.degree || 'MBBS',
       experience: safe.profileData?.experience || '0',
-      currentHospital: safe.profileData?.currentHospital || '',
-      consultationFee: safe.profileData?.consultationFee || '500',
+      currentHospital: safe.profileData?.currentHospital || safe.profileData?.hospital || '',
+      consultationFee: safe.profileData?.consultationFee || String(safe.profileData?.fee || '500'),
       onlineFee: safe.profileData?.onlineFee || '400',
-      city: safe.profileData?.city || '',
+      city: safe.profileData?.city || safe.profileData?.location || '',
       languages: safe.profileData?.languages || 'English',
       bio: safe.profileData?.bio || '',
       servicesOffered: safe.profileData?.servicesOffered || [],
+      photoUrl: safe.profileData?.photoUrl || '',
+      gender: safe.profileData?.gender || '',
+      profileData: safe.profileData || {},
       rating: safe.rating || (4.0 + Math.random() * 0.9).toFixed(1),
       totalReviews: safe.totalReviews || Math.floor(50 + Math.random() * 200),
     }));
@@ -262,16 +267,19 @@ export const searchDoctors = async (req, res) => {
     const doctors = rawDoctors.map((safe) => ({
       email: safe.email,
       name: safe.name,
-      specialization: safe.profileData?.specialization || 'General',
-      qualification: safe.profileData?.qualification || '',
+      specialization: safe.profileData?.specialization || safe.profileData?.specialty || 'General',
+      qualification: safe.profileData?.qualification || safe.profileData?.degree || '',
       experience: safe.profileData?.experience || '0',
-      currentHospital: safe.profileData?.currentHospital || '',
-      consultationFee: safe.profileData?.consultationFee || '500',
+      currentHospital: safe.profileData?.currentHospital || safe.profileData?.hospital || '',
+      consultationFee: safe.profileData?.consultationFee || String(safe.profileData?.fee || '500'),
       onlineFee: safe.profileData?.onlineFee || '400',
-      city: safe.profileData?.city || '',
+      city: safe.profileData?.city || safe.profileData?.location || '',
       languages: safe.profileData?.languages || 'English',
       bio: safe.profileData?.bio || '',
       servicesOffered: safe.profileData?.servicesOffered || [],
+      photoUrl: safe.profileData?.photoUrl || '',
+      gender: safe.profileData?.gender || '',
+      profileData: safe.profileData || {},
       rating: safe.rating || (4.0 + Math.random() * 0.9).toFixed(1),
       totalReviews: safe.totalReviews || Math.floor(50 + Math.random() * 200),
     }));
@@ -288,4 +296,72 @@ export const searchDoctors = async (req, res) => {
       error: 'Internal server error while searching doctors.',
     });
   }
-}
+};
+
+// ─────────────────────────────────────────────
+// POST /api/profile/reviews
+// Add a rating & review for a doctor
+// Body: { doctorEmail, patientEmail, patientName, rating, comment }
+// ─────────────────────────────────────────────
+export const addDoctorReview = async (req, res) => {
+  const { doctorEmail, patientEmail, patientName, rating, comment } = req.body;
+
+  if (!doctorEmail || !patientEmail || !rating || !comment) {
+    return res.status(400).json({
+      success: false,
+      error: 'doctorEmail, patientEmail, rating, and comment are required.',
+    });
+  }
+
+  try {
+    const review = await createReview({
+      doctorEmail,
+      patientEmail,
+      patientName: patientName || patientEmail.split('@')[0],
+      rating: parseInt(rating, 10),
+      comment: comment.trim(),
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: 'Rating and review submitted successfully!',
+      review,
+    });
+  } catch (err) {
+    console.error('Error creating review:', err);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to submit review.',
+    });
+  }
+};
+
+// ─────────────────────────────────────────────
+// GET /api/profile/reviews/:doctorEmail
+// Get all patient reviews for a doctor
+// ─────────────────────────────────────────────
+export const getDoctorReviews = async (req, res) => {
+  const { doctorEmail } = req.params;
+
+  if (!doctorEmail) {
+    return res.status(400).json({
+      success: false,
+      error: 'doctorEmail is required.',
+    });
+  }
+
+  try {
+    const reviews = await getReviewsByDoctor(doctorEmail);
+    return res.json({
+      success: true,
+      count: reviews.length,
+      reviews,
+    });
+  } catch (err) {
+    console.error('Error fetching reviews:', err);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to fetch reviews.',
+    });
+  }
+};

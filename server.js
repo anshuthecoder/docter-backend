@@ -21,6 +21,7 @@ import authRoutes from './routes/authRoutes.js';
 import profileRoutes from './routes/profileRoutes.js';
 import chatRoutes from './routes/chatRoutes.js';
 import postRoutes from './routes/postRoutes.js';
+import appointmentRoutes from './routes/appointmentRoutes.js';
 import {
   initDbSchema,
   findConversationById,
@@ -216,6 +217,9 @@ app.use('/api/chat', chatRoutes);
 
 // Health post routes (upload, retrieve, like, download)
 app.use('/api/posts', postRoutes);
+
+// Appointments routes (request, list, approve/reject, pay)
+app.use('/api/appointments', appointmentRoutes);
 
 // ─────────────────────────────────────────────
 // 404 Handler
