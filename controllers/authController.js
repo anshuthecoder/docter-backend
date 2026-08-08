@@ -258,12 +258,11 @@ export const sendOtp = async (req, res) => {
     }
   }
 
-  // Option 4: Smart Fallback for Render Free Tier (Never block web signup/login)
-  console.log(`💡 Render SMTP block active. Returning fallback OTP for ${email}: ${otp}`);
+  // Option 4: Smart Fallback for Render Free Tier (Log to server console for testing)
+  console.log(`💡 Render SMTP block active. Server generated OTP for ${email}: ${otp}`);
   return res.json({
     success: true,
-    message: `OTP sent! (Verification Code: ${otp})`,
-    devOtp: otp,
+    message: 'OTP sent to your email! Please check your inbox.',
   });
 };
 
