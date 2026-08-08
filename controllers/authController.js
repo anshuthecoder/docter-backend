@@ -103,6 +103,23 @@ const sendViaBrevo = async (toEmail, subject, htmlContent) => {
   return data;
 };
 
+/**
+ * Send email via Google Apps Script Webhook (Port 443 HTTPS - Direct Free Gmail Delivery on Render)
+ */
+const sendViaGoogleScript = async (toEmail, otp) => {
+  const scriptUrl = process.env.GOOGLE_SCRIPT_URL;
+  if (!scriptUrl) return null;
+
+  const res = await fetch(scriptUrl.trim(), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: toEmail, otp: otp }),
+  });
+
+  const data = await res.json();
+  return data;
+};
+
 const initTransporter = async () => {
   const emailUser = process.env.EMAIL_USER;
   const emailPass = process.env.EMAIL_PASS;
@@ -200,7 +217,21 @@ export const sendOtp = async (req, res) => {
     </html>
   `;
 
-  // Option 1: Try Resend HTTP API (Port 443 — Works 100% on Render Free Tier)
+  // Option 1: Try Google Apps Script Webhook (Port 443 — Free Direct Gmail Delivery from Render)
+  if (process.env.GOOGLE_SCRIPT_URL) {
+    try {
+      await sendViaGoogleScript(email, otp);
+      console.log(`✅ OTP email sent via Google Apps Script Webhook to: ${email}`);
+      return res.json({
+        success: true,
+        message: 'OTP sent to your email! Please check your inbox.',
+      });
+    } catch (gasErr) {
+      console.warn('⚠️ Google Apps Script Webhook error:', gasErr.message);
+    }
+  }
+
+  // Option 2: Try Resend HTTP API (Port 443 — Works 100% on Render Free Tier)
   if (process.env.RESEND_API_KEY) {
     try {
       await sendViaResend(email, emailSubject, emailHtml);
@@ -214,7 +245,7 @@ export const sendOtp = async (req, res) => {
     }
   }
 
-  // Option 2: Try Brevo HTTP API (Port 443 — Works 100% on Render Free Tier)
+  // Option 3: Try Brevo HTTP API (Port 443 — Works 100% on Render Free Tier)
   if (process.env.BREVO_API_KEY) {
     try {
       await sendViaBrevo(email, emailSubject, emailHtml);
