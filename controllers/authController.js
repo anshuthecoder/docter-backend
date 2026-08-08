@@ -33,6 +33,7 @@ const createGmailTransporter = (port = 465, secure = true) => {
     host: 'smtp.gmail.com',
     port: port,
     secure: secure, // true for 465 (SSL), false for 587 (TLS)
+    family: 4, // Force IPv4 to prevent ENETUNREACH on Render/cloud containers without IPv6
     auth: {
       user: emailUser.trim(),
       pass: emailPass.trim().replace(/\s+/g, ''), // remove any accidental whitespace
