@@ -244,12 +244,15 @@ export const sendOtp = async (req, res) => {
 
       let info;
       try {
-        // Try Port 465 (SSL)
+        // Try Port 465 (SSL) with IPv4
         const primaryTransporter = createGmailTransporter(465, true) || transporter;
         info = await primaryTransporter.sendMail(mailOptions);
       } catch (primaryErr) {
+        // If it's an Auth error (wrong App Password), throw immediately so the error isn't masked by Port 587 timeout
+        if (primaryErr.message.includes('535') || primaryErr.message.includes('Invalid login') || primaryErr.message.includes('Username and Password not accepted')) {
+          throw new Error('Gmail App Password in Render Environment Variables is invalid or expired. Please update EMAIL_PASS to "cefybdfqojlouxzj" in Render Dashboard.');
+        }
         console.warn(`⚠️ Primary SMTP (Port 465 SSL) failed: ${primaryErr.message}. Trying Port 587 fallback...`);
-        // Fallback to Port 587 (TLS)
         const fallbackTransporter = createGmailTransporter(587, false);
         if (fallbackTransporter) {
           info = await fallbackTransporter.sendMail(mailOptions);
