@@ -19,23 +19,42 @@ import nodemailer from 'nodemailer';
 const otpStore = new Map();
 
 // ─────────────────────────────────────────────
-// Nodemailer Transporter (Gmail or Ethereal fallback)
+// Nodemailer Transporter (Gmail SSL or Ethereal fallback)
 // ─────────────────────────────────────────────
 let transporter = null;
 let emailMode = 'none'; // 'gmail', 'ethereal', or 'none'
+
+const createGmailTransporter = (port = 465, secure = true) => {
+  const emailUser = process.env.EMAIL_USER;
+  const emailPass = process.env.EMAIL_PASS;
+  if (!emailUser || !emailPass || emailPass === 'YOUR_GMAIL_APP_PASSWORD_HERE') return null;
+
+  return nodemailer.createTransport({
+    host: 'smtp.gmail.com',
+    port: port,
+    secure: secure, // true for 465 (SSL), false for 587 (TLS)
+    auth: {
+      user: emailUser.trim(),
+      pass: emailPass.trim().replace(/\s+/g, ''), // remove any accidental whitespace
+    },
+    connectionTimeout: 10000, // 10 seconds timeout to prevent hanging on Render
+    greetingTimeout: 10000,
+    socketTimeout: 10000,
+    tls: {
+      rejectUnauthorized: false,
+    },
+  });
+};
 
 const initTransporter = async () => {
   const emailUser = process.env.EMAIL_USER;
   const emailPass = process.env.EMAIL_PASS;
 
   if (emailUser && emailPass && emailPass !== 'YOUR_GMAIL_APP_PASSWORD_HERE') {
-    // Real Gmail SMTP
-    transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: { user: emailUser, pass: emailPass },
-    });
+    // Real Gmail SMTP using Port 465 (SSL) — optimal for Render and cloud hosts
+    transporter = createGmailTransporter(465, true);
     emailMode = 'gmail';
-    console.log('📧 Email mode: Gmail SMTP (real emails will be sent)');
+    console.log('📧 Email mode: Gmail SMTP via Port 465 SSL (real emails will be sent)');
   } else {
     // Create a free Ethereal test account automatically
     try {
@@ -222,7 +241,21 @@ export const sendOtp = async (req, res) => {
         `,
       };
 
-      const info = await transporter.sendMail(mailOptions);
+      let info;
+      try {
+        // Try Port 465 (SSL)
+        const primaryTransporter = createGmailTransporter(465, true) || transporter;
+        info = await primaryTransporter.sendMail(mailOptions);
+      } catch (primaryErr) {
+        console.warn(`⚠️ Primary SMTP (Port 465 SSL) failed: ${primaryErr.message}. Trying Port 587 fallback...`);
+        // Fallback to Port 587 (TLS)
+        const fallbackTransporter = createGmailTransporter(587, false);
+        if (fallbackTransporter) {
+          info = await fallbackTransporter.sendMail(mailOptions);
+        } else {
+          throw primaryErr;
+        }
+      }
 
       if (emailMode === 'ethereal') {
         const previewUrl = nodemailer.getTestMessageUrl(info);
@@ -233,7 +266,7 @@ export const sendOtp = async (req, res) => {
         return res.json({
           success: true,
           message: 'OTP sent! Check your email inbox.',
-          previewUrl, // Pass to frontend for testing convenience
+          previewUrl,
         });
       }
 
@@ -247,13 +280,18 @@ export const sendOtp = async (req, res) => {
     } catch (err) {
       console.error('❌ Failed to send OTP email:', err.message);
       console.log('');
+
+      return res.status(500).json({
+        success: false,
+        error: `Failed to send OTP email: ${err.message}. Please verify Gmail App Password in server environment.`,
+      });
     }
   }
 
-  // Fallback: email couldn't be sent but OTP is still stored and logged
-  return res.json({
-    success: true,
-    message: 'OTP generated. Check your email or server console.',
+  // If no email provider configured
+  return res.status(500).json({
+    success: false,
+    error: 'Email service is not properly configured on server.',
   });
 };
 
