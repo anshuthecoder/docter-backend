@@ -1,5 +1,7 @@
 import express from 'express';
 import {
+  createPaymentOrder,
+  verifyPayment,
   bookAndPayAppointment,
   getUserAppointments,
   startChat
@@ -7,6 +9,14 @@ import {
 
 const router = express.Router();
 
+// Cashfree Payment Gateway Routes
+// Route: POST /api/appointments/create-payment-order
+router.post('/create-payment-order', createPaymentOrder);
+
+// Route: POST /api/appointments/verify-payment
+router.post('/verify-payment', verifyPayment);
+
+// Legacy / Direct Booking Route
 // Route: POST /api/appointments/book
 router.post('/book', bookAndPayAppointment);
 

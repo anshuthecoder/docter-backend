@@ -152,7 +152,11 @@ export const initDbSchema = async () => {
       await client.query('ALTER TABLE appointments ADD COLUMN IF NOT EXISTS "doctorName" VARCHAR(255)');
       await client.query('ALTER TABLE appointments ADD COLUMN IF NOT EXISTS "patientName" VARCHAR(255)');
       await client.query('ALTER TABLE appointments ADD COLUMN IF NOT EXISTS "consultationFee" INTEGER');
+      await client.query('ALTER TABLE appointments ADD COLUMN IF NOT EXISTS "orderId" VARCHAR(255)');
+      await client.query('ALTER TABLE appointments ADD COLUMN IF NOT EXISTS "cfOrderId" VARCHAR(255)');
+      await client.query('ALTER TABLE appointments ADD COLUMN IF NOT EXISTS "paymentSessionId" TEXT');
       await client.query('ALTER TABLE appointments ALTER COLUMN status SET DEFAULT \'pending\'');
+      await client.query('CREATE INDEX IF NOT EXISTS idx_apt_orderId ON appointments("orderId")');
     } catch (err) {
       console.log('Appointments table migration failed/skipped:', err.message);
     }
@@ -638,8 +642,8 @@ export const generateAppointmentId = () => {
 
 export const createAppointment = async (appointmentData) => {
   const res = await pool.query(
-    `INSERT INTO appointments ("appointmentId", "doctorEmail", "doctorName", "patientEmail", "patientName", "consultationFee", "scheduledTime", status)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+    `INSERT INTO appointments ("appointmentId", "doctorEmail", "doctorName", "patientEmail", "patientName", "consultationFee", "scheduledTime", status, "orderId", "cfOrderId", "paymentSessionId")
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
     [
       appointmentData.appointmentId,
       appointmentData.doctorEmail,
@@ -648,7 +652,10 @@ export const createAppointment = async (appointmentData) => {
       appointmentData.patientName,
       appointmentData.consultationFee,
       appointmentData.scheduledTime,
-      appointmentData.status || 'pending'
+      appointmentData.status || 'pending',
+      appointmentData.orderId || null,
+      appointmentData.cfOrderId || null,
+      appointmentData.paymentSessionId || null
     ]
   );
   return res.rows[0];
@@ -675,6 +682,25 @@ export const getAppointmentById = async (appointmentId) => {
   const res = await pool.query(
     `SELECT * FROM appointments WHERE "appointmentId" = $1`,
     [appointmentId]
+  );
+  return res.rows[0];
+};
+
+export const getAppointmentByOrderId = async (orderId) => {
+  const res = await pool.query(
+    `SELECT * FROM appointments WHERE "orderId" = $1 OR "appointmentId" = $1`,
+    [orderId]
+  );
+  return res.rows[0];
+};
+
+export const updateAppointmentPaymentStatus = async (orderId, status, cfOrderId = null) => {
+  const res = await pool.query(
+    `UPDATE appointments 
+     SET status = $1, "cfOrderId" = COALESCE($2, "cfOrderId") 
+     WHERE "orderId" = $3 OR "appointmentId" = $3 
+     RETURNING *`,
+    [status, cfOrderId, orderId]
   );
   return res.rows[0];
 };
