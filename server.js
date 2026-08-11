@@ -127,14 +127,15 @@ io.on('connection', (socket) => {
     socket.to(conversationId).emit('user-stop-typing', { email, role });
   });
 
-  // ── WebRTC Signaling: Video Call Offer ──
-  socket.on('video-call-offer', ({ conversationId, offer, callerEmail, callerRole }) => {
-    console.log(`📹 Video call offer from ${callerEmail} in ${conversationId}`);
+  // ── WebRTC Signaling: Video/Audio Call Offer ──
+  socket.on('video-call-offer', ({ conversationId, offer, callerEmail, callerRole, callType }) => {
+    console.log(`📹 ${callType || 'video'} call offer from ${callerEmail} in ${conversationId}`);
     socket.to(conversationId).emit('incoming-call', {
       offer,
       callerEmail,
       callerRole,
       conversationId,
+      callType: callType || 'video',
     });
   });
 
