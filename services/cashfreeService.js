@@ -49,8 +49,7 @@ export const createCashfreeOrder = async ({
       },
       order_meta: {
         return_url: orderMeta.returnUrl || 'https://www.curemotionhealthhub.com/appointments',
-        notify_url: orderMeta.notifyUrl || undefined,
-        payment_methods: 'cc,dc,upi,nb,wallet'
+        notify_url: orderMeta.notifyUrl || undefined
       },
       order_note: orderNote
     };
