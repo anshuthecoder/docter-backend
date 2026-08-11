@@ -582,12 +582,12 @@ export const normalizeProfileData = (pd, name, email) => {
   // Align custom availability and date-specific slots
   if (!normalized.availability || typeof normalized.availability !== 'object') {
     normalized.availability = {
-      Monday: { enabled: true, slots: [{ start: '09:00', end: '12:00' }, { start: '14:00', end: '17:00' }, { start: '18:00', end: '20:00' }] },
-      Tuesday: { enabled: true, slots: [{ start: '09:00', end: '12:00' }, { start: '14:00', end: '17:00' }, { start: '18:00', end: '20:00' }] },
-      Wednesday: { enabled: true, slots: [{ start: '09:00', end: '12:00' }, { start: '14:00', end: '17:00' }, { start: '18:00', end: '20:00' }] },
-      Thursday: { enabled: true, slots: [{ start: '09:00', end: '12:00' }, { start: '14:00', end: '17:00' }, { start: '18:00', end: '20:00' }] },
-      Friday: { enabled: true, slots: [{ start: '09:00', end: '12:00' }, { start: '14:00', end: '17:00' }, { start: '18:00', end: '20:00' }] },
-      Saturday: { enabled: true, slots: [{ start: '09:00', end: '13:00' }, { start: '16:00', end: '19:00' }] },
+      Monday: { enabled: true, slots: [{ start: '09:00', end: '12:00' }, { start: '13:00', end: '16:00' }, { start: '17:00', end: '20:00' }] },
+      Tuesday: { enabled: true, slots: [{ start: '09:00', end: '12:00' }, { start: '13:00', end: '16:00' }, { start: '17:00', end: '20:00' }] },
+      Wednesday: { enabled: true, slots: [{ start: '09:00', end: '12:00' }, { start: '13:00', end: '16:00' }, { start: '17:00', end: '20:00' }] },
+      Thursday: { enabled: true, slots: [{ start: '09:00', end: '12:00' }, { start: '13:00', end: '16:00' }, { start: '17:00', end: '20:00' }] },
+      Friday: { enabled: true, slots: [{ start: '09:00', end: '12:00' }, { start: '13:00', end: '16:00' }, { start: '17:00', end: '20:00' }] },
+      Saturday: { enabled: true, slots: [{ start: '09:00', end: '12:00' }, { start: '13:00', end: '16:00' }] },
       Sunday: { enabled: false, slots: [] },
     };
   }
