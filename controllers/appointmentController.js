@@ -315,7 +315,12 @@ export const bookAndPayAppointment = async (req, res) => {
 
     const doctorName = reqDoctorName || (doctor ? doctor.name : doctorEmail.split('@')[0]);
     const patientName = reqPatientName || (patient ? patient.name : patientEmail.split('@')[0]);
-    const fee = Number(consultationFee) || 40; // Default ₹40 for In-Clinic slot booking token
+
+    // Distinguish Online Video Consultation (Doctor Full Fee) vs In-Clinic Visit (₹40 Token Fee)
+    const isOnline = mode.toLowerCase().includes('online') || mode.toLowerCase().includes('video');
+    const doctorOnlineFee = doctor?.profileData?.onlineFee || doctor?.profileData?.consultationFee || doctor?.profileData?.fee || 500;
+    const defaultFee = isOnline ? Number(doctorOnlineFee) : 40;
+    const fee = Number(consultationFee) > 0 ? Number(consultationFee) : defaultFee;
 
     const appointmentData = {
       appointmentId: generateAppointmentId(),
@@ -353,7 +358,13 @@ export const bookAndPayAppointment = async (req, res) => {
           scheduledTime
         });
       } else {
-        conversation = existingConv;
+        await updateConversation(convId, {
+          consultationFee: fee,
+          scheduledTime,
+          status: 'active',
+          updatedAt: new Date().toISOString()
+        });
+        conversation = { ...existingConv, consultationFee: fee, scheduledTime };
       }
 
       // Add auto-generated booking message from patient to doctor
@@ -364,7 +375,7 @@ export const bookAndPayAppointment = async (req, res) => {
         senderEmail: patientEmail,
         senderRole: 'patient',
         senderName: patientName,
-        content: `Hello Dr. ${doctorName}, I have booked a ${mode} for ${scheduledTime}. Fee Paid: ₹${fee}.`,
+        content: `Hello Dr. ${doctorName}, I have booked an ${isOnline ? 'Online Video Consultation' : 'In-Clinic Hospital Visit'} for ${scheduledTime}. Fee Paid: ₹${fee}.`,
         type: 'text',
         isRead: false,
         timestamp: new Date().toISOString()
