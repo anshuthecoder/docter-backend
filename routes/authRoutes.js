@@ -4,7 +4,15 @@
  */
 
 import { Router } from 'express';
-import { registerUser, loginUser, updateProfile, sendOtp, verifyOtp } from '../controllers/authController.js';
+import {
+  registerUser,
+  loginUser,
+  updateProfile,
+  sendOtp,
+  verifyOtp,
+  sendForgotPasswordOtp,
+  resetPassword,
+} from '../controllers/authController.js';
 
 const router = Router();
 
@@ -13,6 +21,12 @@ router.post('/send-otp', sendOtp);
 
 // POST /api/auth/verify-otp - Verify the OTP entered by the user
 router.post('/verify-otp', verifyOtp);
+
+// POST /api/auth/forgot-password-otp - Check account & send reset OTP
+router.post('/forgot-password-otp', sendForgotPasswordOtp);
+
+// POST /api/auth/reset-password - Verify OTP & update password
+router.post('/reset-password', resetPassword);
 
 // POST /api/auth/register - Create a new patient or doctor account
 router.post('/register', registerUser);

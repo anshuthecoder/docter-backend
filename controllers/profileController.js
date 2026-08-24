@@ -214,6 +214,7 @@ export const getAllDoctors = async (req, res) => {
       totalReviews: safe.totalReviews || Math.floor(50 + Math.random() * 200),
     }));
 
+    res.setHeader('Cache-Control', 'public, max-age=30, stale-while-revalidate=60');
     return res.json({
       success: true,
       count: doctors.length,

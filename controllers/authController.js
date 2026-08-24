@@ -14,9 +14,10 @@ import {
 import nodemailer from 'nodemailer';
 
 // ─────────────────────────────────────────────
-// In-Memory OTP Store: { email -> { otp, expiresAt } }
+// In-Memory Stores
 // ─────────────────────────────────────────────
-const otpStore = new Map();
+const otpStore = new Map(); // { email -> { otp, expiresAt } }
+const verifiedEmails = new Map(); // { email -> expiresAt }
 
 // ─────────────────────────────────────────────
 // Email Transporters & HTTP APIs (Resend, Brevo, Nodemailer)
@@ -337,9 +338,10 @@ export const verifyOtp = async (req, res) => {
     });
   }
 
-  // OTP is valid — remove it from store
+  // OTP is valid — remove it from store & mark email as verified for 15 minutes
   otpStore.delete(email.toLowerCase());
-  console.log(`✅ OTP verified for: ${email}`);
+  verifiedEmails.set(email.toLowerCase(), Date.now() + 15 * 60 * 1000);
+  console.log(`✅ OTP verified and email verified session saved for: ${email}`);
 
   return res.json({
     success: true,
@@ -371,9 +373,19 @@ export const registerUser = async (req, res) => {
   // Check if user already exists with same email + role
   const existingUser = await findUserByEmailAndRole(email, role);
   if (existingUser) {
-    return res.status(409).json({
-      success: false,
-      error: `A ${role} account with this email already exists.`,
+    // User verified OTP and re-registered - update password & name and log them in seamlessly
+    const updatedUser = await updateUser(email, role, {
+      password,
+      name,
+      ...(role === 'doctor' && profileData ? { profileData: normalizeProfileData(profileData, name, email) } : {}),
+      updatedAt: new Date().toISOString(),
+    });
+    const { password: _, ...safeUser } = updatedUser || { ...existingUser, name, password };
+    console.log(`✅ Updated existing ${role} credentials and logged in: ${email}`);
+    return res.status(200).json({
+      success: true,
+      message: `${role === 'doctor' ? 'Doctor' : 'Patient'} account updated successfully.`,
+      user: safeUser,
     });
   }
 
@@ -530,3 +542,92 @@ export const updateProfile = async (req, res) => {
     user: safeUser,
   });
 };
+
+// ─────────────────────────────────────────────
+// POST /api/auth/forgot-password-otp
+// Check if user exists and send password reset OTP
+// ─────────────────────────────────────────────
+export const sendForgotPasswordOtp = async (req, res) => {
+  const { email, role = 'patient' } = req.body;
+
+  if (!email) {
+    return res.status(400).json({
+      success: false,
+      error: 'Email is required.',
+    });
+  }
+
+  const user = await findUserByEmailAndRole(email.toLowerCase(), role);
+  if (!user) {
+    return res.status(404).json({
+      success: false,
+      error: `No ${role} account found with this email. Please check your email or create a new account.`,
+    });
+  }
+
+  return sendOtp(req, res);
+};
+
+// ─────────────────────────────────────────────
+// POST /api/auth/reset-password
+// Verify OTP and update password
+// ─────────────────────────────────────────────
+export const resetPassword = async (req, res) => {
+  const { email, otp, newPassword, role = 'patient' } = req.body;
+
+  if (!email || !newPassword) {
+    return res.status(400).json({
+      success: false,
+      error: 'Email and new password are required.',
+    });
+  }
+
+  if (newPassword.length < 6) {
+    return res.status(400).json({
+      success: false,
+      error: 'Password must be at least 6 characters long.',
+    });
+  }
+
+  const user = await findUserByEmailAndRole(email.toLowerCase(), role);
+  if (!user) {
+    return res.status(404).json({
+      success: false,
+      error: `No ${role} account found with this email.`,
+    });
+  }
+
+  // Check 1: If email was already verified in Step 2
+  const verifiedExpiry = verifiedEmails.get(email.toLowerCase());
+  const isEmailPreVerified = verifiedExpiry && Date.now() <= verifiedExpiry;
+
+  // Check 2: If OTP is provided and matches active OTP in store
+  const stored = otpStore.get(email.toLowerCase());
+  const isOtpValid = stored && Date.now() <= stored.expiresAt && stored.otp === (otp || '').trim();
+
+  if (!isEmailPreVerified && !isOtpValid) {
+    return res.status(400).json({
+      success: false,
+      error: 'Verification session expired. Please verify your OTP code again.',
+    });
+  }
+
+  // Clear verification state
+  verifiedEmails.delete(email.toLowerCase());
+  otpStore.delete(email.toLowerCase());
+
+  const updatedUser = await updateUser(email.toLowerCase(), role, {
+    password: newPassword,
+    updatedAt: new Date().toISOString(),
+  });
+
+  const { password: _, ...safeUser } = updatedUser || { ...user, password: newPassword };
+  console.log(`✅ Password reset successfully for ${role}: ${email}`);
+
+  return res.json({
+    success: true,
+    message: 'Password reset successfully! You can now login with your new password.',
+    user: safeUser,
+  });
+};
+

@@ -25,7 +25,10 @@ export const pool = new Pool({
   connectionString,
   ssl: connectionString.includes('sslmode=require') || connectionString.includes('prisma.io') 
     ? { rejectUnauthorized: false } 
-    : false
+    : false,
+  max: 20, // Max concurrent clients in pool
+  idleTimeoutMillis: 30000, // Close idle clients after 30s
+  connectionTimeoutMillis: 5000, // Return error if connection cannot be established in 5s
 });
 
 // ─────────────────────────────────────────────
@@ -147,6 +150,13 @@ export const initDbSchema = async () => {
     } catch (err) {
       // Primary key constraint may already be composite, which is fine
     }
+
+    // Performance Indexes for Users, Appointments, and Posts
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_users_role_completed ON users(role, "profileCompleted");`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_users_email_lower ON users(LOWER(email));`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_apt_patient ON appointments("patientEmail");`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_apt_doctor ON appointments("doctorEmail");`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_posts_created ON health_posts("createdAt" DESC);`);
 
     try {
       await client.query('ALTER TABLE appointments ADD COLUMN IF NOT EXISTS "doctorName" VARCHAR(255)');
@@ -293,6 +303,9 @@ export const createUser = async (userData) => {
       userData.lastCompletedStep || null
     ]
   );
+  if (userData.role === 'doctor') {
+    invalidateDoctorsCache();
+  }
   return userData;
 };
 
@@ -322,6 +335,9 @@ export const updateUser = async (email, role, updates) => {
     `UPDATE users SET ${setClause.join(', ')} WHERE LOWER(email) = LOWER($1) AND role = $2`,
     values
   );
+  if (role === 'doctor') {
+    invalidateDoctorsCache();
+  }
   return await findUserByEmailAndRole(email, role);
 };
 
@@ -441,11 +457,28 @@ export const addMessage = async (messageData) => {
   return messageData;
 };
 
+let cachedDoctors = null;
+let cachedDoctorsTime = 0;
+const DOCTORS_CACHE_TTL_MS = 60 * 1000; // 60 seconds TTL
+
+export const invalidateDoctorsCache = () => {
+  cachedDoctors = null;
+  cachedDoctorsTime = 0;
+};
+
 export const getAllDoctorsFromDb = async () => {
+  const now = Date.now();
+  if (cachedDoctors && now - cachedDoctorsTime < DOCTORS_CACHE_TTL_MS) {
+    return cachedDoctors;
+  }
+
   const res = await pool.query(
-    'SELECT * FROM users WHERE role = $1 AND "profileCompleted" = $2 AND email NOT LIKE $3',
+    'SELECT email, role, name, "profileCompleted", "completionPercentage", "profileData", "updatedAt" FROM users WHERE role = $1 AND "profileCompleted" = $2 AND email NOT LIKE $3',
     ['doctor', true, '%@medicare.com']
   );
+
+  cachedDoctors = res.rows;
+  cachedDoctorsTime = now;
   return res.rows;
 };
 

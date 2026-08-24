@@ -17,6 +17,7 @@ import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
+import compression from 'compression';
 import authRoutes from './routes/authRoutes.js';
 import profileRoutes from './routes/profileRoutes.js';
 import chatRoutes from './routes/chatRoutes.js';
@@ -40,7 +41,7 @@ const httpServer = createServer(app);
 // ─────────────────────────────────────────────
 const io = new Server(httpServer, {
   cors: {
-    origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175', 'http://localhost:3000', 'http://localhost:4173', 'https://docter-frontend-mu.vercel.app', 'https://curemotionhealthhub.com', 'https://www.curemotionhealthhub.com'],
+    origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175', 'http://localhost:3000', 'http://localhost:4173', 'https://docter-frontend-mu.vercel.app', 'https://curemotionhealthhub.com', 'https://www.curemotionhealthhub.com', '*'],
     methods: ['GET', 'POST'],
     credentials: true,
   },
@@ -186,11 +187,13 @@ io.on('connection', (socket) => {
 // Middleware
 // ─────────────────────────────────────────────
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175', 'http://localhost:3000', 'http://localhost:4173', 'https://docter-frontend-mu.vercel.app', 'https://curemotionhealthhub.com', 'https://www.curemotionhealthhub.com'],
+  origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175', 'http://localhost:3000', 'http://localhost:4173', 'https://docter-frontend-mu.vercel.app', 'https://curemotionhealthhub.com', 'https://www.curemotionhealthhub.com', '*'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   credentials: true,
 }));
-app.use(express.json());
+app.use(compression());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // ─────────────────────────────────────────────
 // API Routes

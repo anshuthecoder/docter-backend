@@ -9,7 +9,9 @@ import {
   findUserByEmailAndRole,
   createConversation,
   generateConversationId,
-  findConversationByParticipants
+  findConversationByParticipants,
+  addMessage,
+  updateConversation
 } from '../config/db.js';
 import { createCashfreeOrder, getCashfreeOrderStatus } from '../services/cashfreeService.js';
 
@@ -291,17 +293,29 @@ export const verifyPayment = async (req, res) => {
  */
 export const bookAndPayAppointment = async (req, res) => {
   try {
-    const { doctorEmail, patientEmail, scheduledTime, consultationFee } = req.body;
+    const {
+      doctorEmail,
+      doctorName: reqDoctorName,
+      patientEmail,
+      patientName: reqPatientName,
+      patientPhone,
+      scheduledTime,
+      consultationFee,
+      mode = 'In-Clinic Hospital Visit',
+      symptoms = '',
+      hospital = ''
+    } = req.body;
 
     if (!doctorEmail || !patientEmail || !scheduledTime) {
-      return res.status(400).json({ success: false, error: 'Missing required fields' });
+      return res.status(400).json({ success: false, error: 'Doctor email, Patient email, and Scheduled Time are required.' });
     }
 
     const doctor = await findUserByEmailAndRole(doctorEmail, 'doctor');
     const patient = await findUserByEmailAndRole(patientEmail, 'patient');
 
-    const doctorName = doctor ? doctor.name : doctorEmail.split('@')[0];
-    const patientName = patient ? patient.name : patientEmail.split('@')[0];
+    const doctorName = reqDoctorName || (doctor ? doctor.name : doctorEmail.split('@')[0]);
+    const patientName = reqPatientName || (patient ? patient.name : patientEmail.split('@')[0]);
+    const fee = Number(consultationFee) || 40; // Default ₹40 for In-Clinic slot booking token
 
     const appointmentData = {
       appointmentId: generateAppointmentId(),
@@ -310,39 +324,81 @@ export const bookAndPayAppointment = async (req, res) => {
       patientEmail,
       patientName,
       scheduledTime,
-      consultationFee: consultationFee || (doctor?.profileData?.consultationFee || 500),
-      status: 'paid'
+      consultationFee: fee,
+      status: 'confirmed',
+      mode,
+      patientPhone: patientPhone || '',
+      symptoms: symptoms || '',
+      hospital: hospital || (doctor?.profileData?.currentHospital || doctor?.profileData?.hospital || '')
     };
 
     const newAppointment = await createAppointment(appointmentData);
 
-    // Auto-create chat conversation
+    // Auto-create/update chat conversation and send slot booking message
+    let conversation = null;
     try {
       const existingConv = await findConversationByParticipants(doctorEmail, patientEmail);
+      let convId = existingConv?.conversationId;
+
       if (!existingConv) {
-        await createConversation({
-          conversationId: generateConversationId(),
+        convId = generateConversationId();
+        conversation = await createConversation({
+          conversationId: convId,
           doctorEmail,
           doctorName,
           patientEmail,
           patientName,
           status: 'active',
-          consultationFee: appointmentData.consultationFee,
+          consultationFee: fee,
           scheduledTime
         });
+      } else {
+        conversation = existingConv;
       }
+
+      // Add auto-generated booking message from patient to doctor
+      const messageId = `msg_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+      const autoMessage = {
+        messageId,
+        conversationId: convId,
+        senderEmail: patientEmail,
+        senderRole: 'patient',
+        senderName: patientName,
+        content: `Hello Dr. ${doctorName}, I have booked a ${mode} for ${scheduledTime}. Fee Paid: ₹${fee}.`,
+        type: 'text',
+        isRead: false,
+        timestamp: new Date().toISOString()
+      };
+      await addMessage(autoMessage);
+
+      conversation = await updateConversation(convId, {
+        lastMessage: autoMessage.content,
+        lastMessageAt: autoMessage.timestamp,
+        unreadDoctor: (existingConv?.unreadDoctor || 0) + 1,
+        scheduledTime,
+        consultationFee: fee
+      });
+      console.log(`💬 Auto-sent booking message in conversation: ${convId}`);
     } catch (e) {
-      console.warn('⚠️ Error creating conversation in direct booking:', e.message);
+      console.warn('⚠️ Error creating conversation/message in booking:', e.message);
     }
 
     res.status(201).json({
       success: true,
-      message: 'Appointment booked successfully!',
-      appointment: newAppointment
+      message: `${mode} booked & confirmed successfully!`,
+      conversationId: conversation?.conversationId,
+      conversation,
+      appointment: {
+        ...newAppointment,
+        mode,
+        hospital: appointmentData.hospital,
+        patientPhone: appointmentData.patientPhone,
+        symptoms: appointmentData.symptoms
+      }
     });
   } catch (error) {
     console.error('Error booking appointment:', error);
-    res.status(500).json({ success: false, error: 'Failed to book appointment' });
+    res.status(500).json({ success: false, error: error.message || 'Failed to book appointment' });
   }
 };
 
